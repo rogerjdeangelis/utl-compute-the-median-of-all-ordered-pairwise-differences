@@ -1,2 +1,302 @@
 # utl-compute-the-median-of-all-ordered-pairwise-differences
 Compute the median of all ordered pairwise differences  
+    %let pgm=utl-compute-the-median-of-all-ordered-pairwise-differences;
+
+    Compute the median of all ordered pairwise differences
+
+    github
+    https://tinyurl.com/48zvvk9s
+    https://github.com/rogerjdeangelis/utl-compute-the-median-of-all-ordered-pairwise-differences
+
+    stackoverflow
+    https://tinyurl.com/2ctz3h74
+    https://stackoverflow.com/questions/74659934/sas-help-median-of-values-in-an-array
+
+    Problem
+
+      NAME     A    B    C    D     E
+      ROGER    1    2    3    4     5
+
+             All Differences
+      WANT    Ordered  Diff
+              Pairs
+               5 - 1  = 4
+               5 - 2  = 3
+               5 - 3  = 2
+               5 - 4  = 1
+               4 - 1  = 3
+               4 - 2  = 2
+               4 - 3  = 1
+               3 - 1  = 2
+               3 - 2  = 1
+               2 - 1  = 1
+                                          Median
+     Ordered Median Difference          (2+2)/2=2
+                                        =========
+           Ordered differences  1 1 1 1    2 2      2 3 3 4
+
+
+     Four solutions
+
+         1. SAS Datastep loops
+         2. WPS Datastep loops
+         3. WPS Proc R
+         4. SAS ALLCOMBI
+            Looks like ALLCOMBI is not implemented in WPS
+            ERROR: The CALL routine "ALLCOMBI" is not known
+    /*                   _
+    (_)_ __  _ __  _   _| |_
+    | | `_ \| `_ \| | | | __|
+    | | | | | |_) | |_| | |_
+    |_|_| |_| .__/ \__,_|\__|
+            |_|
+    */
+
+    libname sd1 "d:/sd1";
+
+    data sd1.have;
+     input nam $6. a b c d e;
+    cards;
+    JERRY 19 15 3 7 11
+    ROGER 1 2 3 4 5
+    ;;;;
+    run;quit;
+
+    /**************************************************************************************************************************/
+    /*                                                                                                                        */
+    /*                                                                                                                        */
+    /* Up to 40 obs from SD1.HAVE total obs=2 27APR2023:16:34:16                                                              */
+    /* Obs     NAM      A     B    C    D     E                                                                               */
+    /*                                                                                                                        */
+    /*  1     JERRY    19    15    3    7    11  (see below for rules                                                         */
+    /*  2     ROGER     1     2    3    4     5                                                                               */
+    /*                                                                                                                        */
+    /* RULES                                                                                                                  */
+    /*                                                                                                                        */
+    /*                              Median                                                                                    */
+    /*            DIF              (8+8)/2=8                                                                                  */
+    /* B=7  A=3    4     4 4 4 4     8 8     8 12 12 16                                                                       */
+    /* C=11 A=3    8                                                                                                          */
+    /* D=15 A=3   12                                                                                                          */
+    /* E=19 A=3   16                                                                                                          */
+    /* C=11 B=7    4                                                                                                          */
+    /* D=15 B=7    8                                                                                                          */
+    /* E=19 B=7   12                                                                                                          */
+    /* E=19 C=11   8                                                                                                          */
+    /* D=15 C=11   4                                                                                                          */
+    /* E=19 D=15   4                                                                                                          */
+    /*                                                                                                                        */
+    /**************************************************************************************************************************/
+
+    proc datasets lib=work details nolist mt=view mt=data;
+     delete want;
+    run;quit;
+
+    data want;
+
+       set sd1.have;
+
+       array z[5]  a b c d e ;
+       array r[10] _temporary_;
+
+       call sortn(of z[*]);
+
+       idx=0;
+       do i=5 to 1 by -1;
+         do j=5 to 1 by -1;
+            if i > j then do;
+               idx = idx+1;
+               r[idx] = z[i] - z[j];
+            end;
+         end;
+       end;
+
+       median_difference=median(of r[*]);
+       keep nam median_difference;
+
+    run;quit;
+
+    /**************************************************************************************************************************/
+    /*                                                                                                                        */
+    /*                                                                                                                        */
+    /*  Up to 40 obs from WANT total obs=2 27APR2023:16:36:09                                                                 */
+    /*                    MEDIAN_                                                                                             */
+    /*  Obs     NAM     DIFFERENCE                                                                                            */
+    /*                                                                                                                        */
+    /*   1     JERRY         8   ==> median difference                                                                        */
+    /*   2     ROGER         2                                                                                                */
+    /*                                                                                                                        */
+    /**************************************************************************************************************************/
+
+    /*                        _       _            _
+    __      ___ __  ___    __| | __ _| |_ __ _ ___| |_ ___ _ __
+    \ \ /\ / / `_ \/ __|  / _` |/ _` | __/ _` / __| __/ _ \ `_ \
+     \ V  V /| |_) \__ \ | (_| | (_| | || (_| \__ \ ||  __/ |_) |
+      \_/\_/ | .__/|___/  \__,_|\__,_|\__\__,_|___/\__\___| .__/
+             |_|                                          |_|
+    */
+
+
+    proc datasets lib=work details nolist mt=view mt=data;
+     delete want;
+    run;quit;
+
+    %let _pth=%sysfunc(pathname(work));
+
+    %utl_submit_wps64('
+
+    libname wrk "&_pth";
+
+    data want;
+
+       set wrk.have;
+
+       array z[5]  a b c d e ;
+       array r[10] _temporary_;
+
+       call sortn(of z[*]);
+
+       idx=0;
+       do i=5 to 1 by -1;
+         do j=5 to 1 by -1;
+            if i > j then do;
+               idx = idx+1;
+               r[idx] = z[i] - z[j];
+            end;
+         end;
+       end;
+
+       median_difference=median(of r[*]);
+       keep nam median_difference;
+
+    run;quit;
+
+    proc print;
+    run;quit;
+    ');
+
+    /**************************************************************************************************************************/
+    /*                                                                                                                        */
+    /*  The WPS System                                                                                                        */
+    /*                                                                                                                        */
+    /*  Obs     NAM     MEDIAN_DIFFERENCE                                                                                     */
+    /*                                                                                                                        */
+    /*   1     JERRY            8                                                                                             */
+    /*   2     ROGER            2                                                                                             */
+    /*                                                                                                                        */
+    /**************************************************************************************************************************/
+
+    /*
+    __      ___ __  ___   _ __  _ __ ___   ___   _ __
+    \ \ /\ / / `_ \/ __| | `_ \| `__/ _ \ / __| | `__|
+     \ V  V /| |_) \__ \ | |_) | | | (_) | (__  | |
+      \_/\_/ | .__/|___/ | .__/|_|  \___/ \___| |_|
+             |_|         |_|
+    */
+
+    proc datasets lib=work nodetails nolist;
+     delete want_long_names;
+    run;quit;
+
+    /*---- I could not get R apply to work ----*/
+    %utl_submit_wps64('
+    libname sd1 "d:/sd1";
+    proc r;
+    export data=sd1.have r=a;
+    submit ;
+    library(data.table);
+    library(dplyr);
+    pair <- function(x) {
+       o1 <- outer(x, x, FUN = "-");
+       o1<-abs(o1);
+       o1_different <- upper.tri(o1) * o1;
+       medpair <- median(ifelse(o1_different == 0, NA, o1_different),na.rm=TRUE);
+       return(medpair);
+       };
+    nam<-a[,1];
+    a<-as.matrix(a[,2:6]);
+    nr=nrow(a);
+    b<-a;
+    want<-NULL;
+      for (i in 1:nr ) {
+        a<-sort(b[i,]);
+        want <- rbind(want,pair(a));
+        };
+    want<- as.data.frame(want);
+    want<-cbind(nam,want);
+    colnames(want)<-c("STUDENT_NAME","MEDIAN_DIFFERENCE");
+    endsubmit;
+    import data=wantx r=want;
+    proc print data=wantx;
+    run;quit;
+    ');
+
+    /**************************************************************************************************************************/
+    /*                                                                                                                        */
+    /*  The WPS System                                                                                                        */
+    /*                                                                                                                        */
+    /*  Obs     NAM     MEDIAN_DIFFERENCE                                                                                     */
+    /*                                                                                                                        */
+    /*   1     JERRY            8                                                                                             */
+    /*   2     ROGER            2                                                                                             */
+    /*                                                                                                                        */
+    /**************************************************************************************************************************/
+
+    /*                     _ _                     _     _
+     ___  __ _ ___    __ _| | | ___ ___  _ __ ___ | |__ (_)
+    / __|/ _` / __|  / _` | | |/ __/ _ \| `_ ` _ \| `_ \| |
+    \__ \ (_| \__ \ | (_| | | | (_| (_) | | | | | | |_) | |
+    |___/\__,_|___/  \__,_|_|_|\___\___/|_| |_| |_|_.__/|_|
+
+    */
+
+    proc datasets lib=work nodetails nolist;
+     delete want_long_names;
+    run;quit;
+
+    data want;
+
+       set sd1.have;
+
+       array i[2]  _temporary_;
+       array z[5]  a b c d e ;
+       array r[10] _temporary_;
+
+       call sortn(of z[*]);
+
+       n=5;
+       k=2;
+       i[1]=0;
+       idx=0;
+
+       ncomb=comb(n,k);  /*--- mcomb=10 because we have 5 choose is 2           ----*/
+
+       do j=1 to ncomb;
+          idx=idx+1;
+          call allcombi(n, k, of i[*]); /*--- each iter gets 1 of the ten pairs ----*/
+          r[idx]=z[i[2]]-z[i[1]];
+       end;
+
+       med = median(of r[*]);
+
+       keep nam med;
+    run;
+
+    /**************************************************************************************************************************/
+    /*                                                                                                                        */
+    /*  Up to 40 obs from last table WORK.WANT total obs=2 27APR2023:16:47:51                                                 */
+    /*                                                                                                                        */
+    /*  Obs     NAM     MED                                                                                                   */
+    /*                                                                                                                        */
+    /*   1     JERRY     8                                                                                                    */
+    /*   2     ROGER     2                                                                                                    */
+    /*                                                                                                                        */
+    /**************************************************************************************************************************/
+
+    /*              _
+      ___ _ __   __| |
+     / _ \ `_ \ / _` |
+    |  __/ | | | (_| |
+     \___|_| |_|\__,_|
+
+    */
