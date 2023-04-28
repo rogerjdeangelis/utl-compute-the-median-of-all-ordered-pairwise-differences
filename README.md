@@ -36,7 +36,7 @@ Compute the median of all ordered pairwise differences
            Ordered differences  1 1 1 1    2 2      2 3 3 4
 
 
-     Four solutions
+     Five solutions
 
          1. SAS Datastep loops
          2. WPS Datastep loops
@@ -44,6 +44,10 @@ Compute the median of all ordered pairwise differences
          4. SAS ALLCOMBI
             Looks like ALLCOMBI is not implemented in WPS
             ERROR: The CALL routine "ALLCOMBI" is not known
+         5. WPS Bart Datastep  (enhancement)
+            Bartosz Jablonski
+            yabwon@gmail.com
+
     /*                   _
     (_)_ __  _ __  _   _| |_
     | | `_ \| `_ \| | | | __|
@@ -55,7 +59,8 @@ Compute the median of all ordered pairwise differences
     libname sd1 "d:/sd1";
 
     data sd1.have;
-     input nam $6. a b c d e;
+     informat nam $6.;
+     input nam a b c d e;
     cards;
     JERRY 19 15 3 7 11
     ROGER 1 2 3 4 5
@@ -292,6 +297,38 @@ Compute the median of all ordered pairwise differences
     /*   2     ROGER     2                                                                                                    */
     /*                                                                                                                        */
     /**************************************************************************************************************************/
+    /*                _                              _       _            _
+    | |__   __ _ _ __| |_  __      ___ __  ___    __| | __ _| |_ __ _ ___| |_ ___ _ __
+    | `_ \ / _` | `__| __| \ \ /\ / / `_ \/ __|  / _` |/ _` | __/ _` / __| __/ _ \ `_ \
+    | |_) | (_| | |  | |_   \ V  V /| |_) \__ \ | (_| | (_| | || (_| \__ \ ||  __/ |_) |
+    |_.__/ \__,_|_|   \__|   \_/\_/ | .__/|___/  \__,_|\__,_|\__\__,_|___/\__\___| .__/
+                                    |_|                                          |_|
+    */
+    %utl_submit_wps64('
+
+      libname sd1 "d:/sd1";
+
+      data want2;
+       set sd1.have;
+
+       array z[5]  a b c d e ;
+       array r[5,5] _temporary_;
+
+       do i=1 to 5;
+         do j=i+1 to 5;
+           r[i,j] = abs(z[i] - z[j]);
+         end;
+       end;
+
+       median_difference=median(of r[*]);
+       keep nam median_difference;
+
+    run;quit;
+
+    proc print;
+    run;quit;
+
+    ');
 
     /*              _
       ___ _ __   __| |
